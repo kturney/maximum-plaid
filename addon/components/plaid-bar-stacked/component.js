@@ -45,6 +45,11 @@ const PlaidBarStackedComponent = Component.extend(GroupElement, {
   */
   values: [],
 
+  /**
+    @private
+  */
+  drawnValues: [],
+
   stackBy: null,
   colorScale: null,
 
@@ -64,22 +69,52 @@ const PlaidBarStackedComponent = Component.extend(GroupElement, {
   },
 
   drawBars() {
-    let { values, xScale, yScale, stackBy, colorScale } =
-      getProperties(this, 'values', 'xScale', 'yScale', 'stackBy', 'colorScale');
+    let { values, xScale, yScale, stackBy, colorScale, orientation } =
+      getProperties(this, 'values', 'xScale', 'yScale', 'stackBy', 'colorScale', 'orientation');
 
-    this.selection.selectAll('.bar-group').data(values).enter().append('g')
+    let x, width, y, height;
+
+    if (orientation === 'vertical') {
+      x = (d) => xScale(d.data[stackBy]);
+      width = xScale.bandwidth;
+      y = (d) => yScale(d[1]);
+      height = (d) => yScale(d[0]) - yScale(d[1]);
+    } else {
+      x = (d) => xScale(d[0]);
+      width = (d) => xScale(d[1]) - xScale(d[0]);
+      y = (d) => yScale(d.data[stackBy]);
+      height = yScale.bandwidth;
+    }
+
+    const appendElements = values !== this.drawnValues || values.length !== this.drawnValues.length;
+
+    let barGroups = this.selection.selectAll('.bar-group');
+
+    if (appendElements) {
+      barGroups = barGroups.data(values).enter().append('g');
+    }
+
+    let bars = barGroups
       .attr('class', (d) => `bar-group ${d.key}`)
       .attr('fill', (d) => {
         if (colorScale) {
           return colorScale(d.key);
         }
       })
-      .selectAll('.bar').data((d) => d).enter().append('rect')
-        .attr('class', 'bar')
-        .attr('x', (d) => xScale(d.data[stackBy]))
-        .attr('width', xScale.bandwidth)
-        .attr('y', (d) => yScale(d[1]))
-        .attr('height', (d) => yScale(d[0]) - yScale(d[1]));
+      .selectAll('.bar');
+
+    if (appendElements) {
+      bars = bars.data((d) => d).enter().append('rect');
+    }
+
+    bars
+      .attr('class', 'bar')
+      .attr('x', x)
+      .attr('width', width)
+      .attr('y', y)
+      .attr('height', height);
+
+    this.drawnValues = values;
   }
 });
 
